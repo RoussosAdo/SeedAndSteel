@@ -13,6 +13,10 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float attackRange = 1.2f;
     [SerializeField] private float attackCooldown = 1.2f;
 
+    [Header("Teleport Attack")]
+    [SerializeField] private float teleportOffsetFromPlayer = 0.8f;
+    [SerializeField] private float teleportCooldown = 3f;
+
     [Header("Lock Times")]
     [SerializeField] private float attackLockTime = 0.6f;
     [SerializeField] private float hitLockTime = 0.25f;
@@ -25,8 +29,12 @@ public class EnemyAI : MonoBehaviour
 
     private float attackTimer;
     private float lockTimer;
+    private float teleportCooldownTimer;
+
     private bool isAttacking;
+    private bool isTeleportAttacking;
     private bool isDead;
+    private bool playerWasInDetectionRange;
 
     private Rigidbody2D rb;
     private Animator animator;
@@ -50,8 +58,16 @@ public class EnemyAI : MonoBehaviour
         if (isDead || player == null) return;
 
         attackTimer -= Time.fixedDeltaTime;
+        teleportCooldownTimer -= Time.fixedDeltaTime;
 
         UpdateAttackPointDirection();
+
+        if (isTeleportAttacking)
+        {
+            rb.linearVelocity = Vector2.zero;
+            animator.SetFloat("Speed", 0f);
+            return;
+        }
 
         if (lockTimer > 0f)
         {
@@ -61,13 +77,23 @@ public class EnemyAI : MonoBehaviour
         }
 
         float distanceToPlayer = Vector2.Distance(transform.position, player.position);
+        bool playerIsInDetectionRange = distanceToPlayer <= detectionRange;
+
+        if (playerIsInDetectionRange && !playerWasInDetectionRange && teleportCooldownTimer <= 0f)
+        {
+            StartTeleportAttack();
+            playerWasInDetectionRange = true;
+            return;
+        }
+
+        playerWasInDetectionRange = playerIsInDetectionRange;
 
         if (distanceToPlayer <= attackRange)
         {
             StopMoving();
             TryAttack();
         }
-        else if (distanceToPlayer <= detectionRange)
+        else if (playerIsInDetectionRange)
         {
             ChasePlayer();
         }
@@ -75,6 +101,52 @@ public class EnemyAI : MonoBehaviour
         {
             StopMoving();
         }
+    }
+
+    private void StartTeleportAttack()
+    {
+        isTeleportAttacking = true;
+        isAttacking = false;
+        teleportCooldownTimer = teleportCooldown;
+
+        CancelInvoke(nameof(EndAttack));
+        StopMoving();
+
+        rb.linearVelocity = Vector2.zero;
+        rb.constraints = RigidbodyConstraints2D.FreezeAll;
+
+        animator.SetFloat("Speed", 0f);
+        animator.ResetTrigger("Attack");
+        animator.ResetTrigger("Hit");
+        animator.ResetTrigger("Dash");
+        animator.SetTrigger("Dash");
+    }
+
+
+    public void TeleportNearPlayer()
+    {
+        if (player == null || isDead) return;
+
+        Vector2 directionFromPlayerToEnemy = (transform.position - player.position).normalized;
+
+        if (directionFromPlayerToEnemy == Vector2.zero)
+            directionFromPlayerToEnemy = Vector2.right;
+
+        transform.position = (Vector2)player.position + directionFromPlayerToEnemy * teleportOffsetFromPlayer;
+
+        rb.linearVelocity = Vector2.zero;
+
+        UpdateAttackPointDirection();
+        DamagePlayer();
+    }
+
+    
+    public void EndTeleportAttack()
+    {
+        isTeleportAttacking = false;
+
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        StopMoving();
     }
 
     private void UpdateAttackPointDirection()
@@ -92,7 +164,7 @@ public class EnemyAI : MonoBehaviour
 
     private void ChasePlayer()
     {
-        if (isAttacking) return;
+        if (isAttacking || isTeleportAttacking) return;
 
         Vector2 direction = (player.position - transform.position).normalized;
 
@@ -107,7 +179,7 @@ public class EnemyAI : MonoBehaviour
 
     private void TryAttack()
     {
-        if (attackTimer > 0f || isAttacking) return;
+        if (attackTimer > 0f || isAttacking || isTeleportAttacking) return;
 
         isAttacking = true;
         attackTimer = attackCooldown;
@@ -134,9 +206,7 @@ public class EnemyAI : MonoBehaviour
         );
 
         if (hit != null)
-        {
             Debug.Log("Enemy hit player");
-        }
     }
 
     private void EndAttack()
@@ -148,8 +218,12 @@ public class EnemyAI : MonoBehaviour
     {
         if (isDead) return;
 
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
         lockTimer = hitLockTime;
         isAttacking = false;
+        isTeleportAttacking = false;
+
         CancelInvoke(nameof(EndAttack));
         StopMoving();
     }
@@ -164,16 +238,18 @@ public class EnemyAI : MonoBehaviour
     {
         isDead = true;
         isAttacking = false;
+        isTeleportAttacking = false;
         lockTimer = 0f;
 
         CancelInvoke(nameof(EndAttack));
+
+        rb.constraints = RigidbodyConstraints2D.FreezeAll;
         StopMoving();
     }
 
     private void OnDrawGizmosSelected()
     {
         if (attackPoint == null) return;
-
         Gizmos.DrawWireSphere(attackPoint.position, attackRadius);
     }
 }

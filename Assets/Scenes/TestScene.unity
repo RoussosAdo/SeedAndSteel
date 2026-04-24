@@ -28524,7 +28524,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 3.3125, y: 1.625}
+  m_Size: {x: 3.0625, y: 1.625}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -28571,7 +28571,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!70 &1489330684
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -28662,6 +28662,8 @@ MonoBehaviour:
   detectionRange: 5
   attackRange: 1.5
   attackCooldown: 1.2
+  teleportOffsetFromPlayer: 0.8
+  teleportCooldown: 5
   attackLockTime: 1.3
   hitLockTime: 0.25
   attackPoint: {fileID: 19511766}
@@ -32963,7 +32965,7 @@ Transform:
   m_GameObject: {fileID: 1757821862}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4.98, y: -0.11, z: 0}
+  m_LocalPosition: {x: -8.27, y: -0.11, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
