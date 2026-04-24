@@ -4,37 +4,49 @@ using UnityEngine;
 public class EnemyHealth : MonoBehaviour
 {
     [SerializeField] private int maxHealth = 3;
-    [SerializeField] private float flashDuration = 0.08f;
+    [SerializeField] private float destroyDelay = 1.2f;
 
     private int currentHealth;
-    private SpriteRenderer spriteRenderer;
-    private Color originalColor;
+    private Animator animator;
+    private Collider2D enemyCollider;
+    private Rigidbody2D rb;
+    private bool isDead;
 
     private void Awake()
     {
         currentHealth = maxHealth;
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        originalColor = spriteRenderer.color;
+        animator = GetComponent<Animator>();
+        enemyCollider = GetComponent<Collider2D>();
+        rb = GetComponent<Rigidbody2D>();
     }
 
     public void TakeDamage(int damage)
     {
+        if (isDead) return;
+
         currentHealth -= damage;
-        StartCoroutine(HitFlash());
 
         if (currentHealth <= 0)
+        {
             Die();
-    }
+            return;
+        }
 
-    private IEnumerator HitFlash()
-    {
-        spriteRenderer.color = Color.white;
-        yield return new WaitForSeconds(flashDuration);
-        spriteRenderer.color = originalColor;
+        animator.SetTrigger("Hit");
     }
 
     private void Die()
     {
-        Destroy(gameObject);
+        isDead = true;
+
+        animator.SetBool("Dead", true);
+
+        if (enemyCollider != null)
+            enemyCollider.enabled = false;
+
+        if (rb != null)
+            rb.linearVelocity = Vector2.zero;
+
+        Destroy(gameObject, destroyDelay);
     }
 }
