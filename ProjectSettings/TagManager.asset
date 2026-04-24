@@ -15,7 +15,7 @@ TagManager:
   - Ground
   - Props
   - Player
-  - Enemies
+  - Enemy
   - VFX
   - UI
   - Interactables

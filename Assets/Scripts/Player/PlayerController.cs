@@ -7,7 +7,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Combat")]
     [SerializeField] private Transform attackPoint;
-    [SerializeField] private float attackRange = 0.8f;
+    [SerializeField] private float attackRange = 2f;
     [SerializeField] private LayerMask enemyLayer;
 
     [Header("Combo")]
@@ -17,6 +17,8 @@ public class PlayerController : MonoBehaviour
 
     [Header("Guard")]
     [SerializeField] private float guardDuration = 1f;
+
+    [SerializeField] private int attackDamage = 1;
 
     private Rigidbody2D rb;
     private Animator animator;
@@ -183,7 +185,15 @@ public class PlayerController : MonoBehaviour
         );
 
         foreach (Collider2D hit in hits)
-            Debug.Log("Hit enemy: " + hit.name);
+        {
+            EnemyHealth enemyHealth = hit.GetComponent<EnemyHealth>();
+
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeDamage(attackDamage);
+            }
+        }
+        Debug.Log("Attack happened. Hits: " + hits.Length);
     }
 
     private void UpdateAnimator()
@@ -192,17 +202,32 @@ public class PlayerController : MonoBehaviour
     }
 
     private void UpdateFacingDirection()
+{
+    if (isAttacking || isGuarding) return;
+
+    if (moveInput.x > 0.01f)
+        GetComponent<SpriteRenderer>().flipX = false;
+    else if (moveInput.x < -0.01f)
+        GetComponent<SpriteRenderer>().flipX = true;
+
+    if (attackPoint != null)
     {
-        if (isAttacking || isGuarding) return;
+        Vector2 attackOffset = lastMoveDirection.normalized;
 
-        if (moveInput.x > 0.01f)
-            transform.localScale = new Vector3(1, 1, 1);
-        else if (moveInput.x < -0.01f)
-            transform.localScale = new Vector3(-1, 1, 1);
-
-        if (attackPoint != null)
-            attackPoint.localPosition = lastMoveDirection * 0.7f;
+        if (attackOffset.y > 0.3f)
+        {
+            attackPoint.localPosition = new Vector3(attackOffset.x * 0.35f, 0.45f, 0f);
+        }
+        else if (attackOffset.y < -0.3f)
+        {
+            attackPoint.localPosition = new Vector3(attackOffset.x * 0.35f, -0.45f, 0f);
+        }
+        else
+        {
+            attackPoint.localPosition = new Vector3(attackOffset.x * 0.55f, -0.05f, 0f);
+        }
     }
+}
 
     private void OnDrawGizmosSelected()
     {
