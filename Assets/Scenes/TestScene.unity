@@ -32813,6 +32813,11 @@ MonoBehaviour:
   comboWindow: 0.45
   guardDuration: 0.5
   attackDamage: 1
+  dashSpeed: 12
+  dashDuration: 0.15
+  dashCooldown: 0.6
+  afterImagePrefab: {fileID: 2530597725972383397, guid: 117da2c3085834b40a0f1de7a96bae7c, type: 3}
+  afterImageSpawnRate: 0.04
 --- !u!95 &1757821864
 Animator:
   serializedVersion: 7
@@ -32987,6 +32992,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 5
+  invincibleDuration: 0.7
+  flashInterval: 0.08
 --- !u!1 &1780142689
 GameObject:
   m_ObjectHideFlags: 0

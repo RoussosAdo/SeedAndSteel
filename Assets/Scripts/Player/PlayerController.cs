@@ -20,6 +20,23 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private int attackDamage = 1;
 
+    [Header("Dash")]
+    [SerializeField] private float dashSpeed = 12f;
+    [SerializeField] private float dashDuration = 0.15f;
+    [SerializeField] private float dashCooldown = 0.6f;
+
+    [Header("Dash Afterimage")]
+    [SerializeField] private GameObject afterImagePrefab;
+    [SerializeField] private float afterImageSpawnRate = 0.04f;
+
+    private float afterImageTimer;
+    private SpriteRenderer spriteRenderer;
+
+    private bool isDashing;
+    private float dashTimer;
+    private float dashCooldownTimer;
+    private Vector2 dashDirection;
+
     private Rigidbody2D rb;
     private Animator animator;
 
@@ -40,6 +57,7 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     private void Update()
@@ -52,10 +70,21 @@ public class PlayerController : MonoBehaviour
 
         UpdateAnimator();
         UpdateFacingDirection();
+
+        dashCooldownTimer -= Time.deltaTime;
+        ReadDashInput();
+        UpdateDashTimer();
     }
 
     private void FixedUpdate()
     {
+        if (isDashing)
+        {
+            rb.linearVelocity = dashDirection * dashSpeed;
+            SpawnAfterImage();
+            return;
+        }
+
         if (isAttacking || isGuarding)
         {
             rb.linearVelocity = Vector2.zero;
@@ -67,7 +96,7 @@ public class PlayerController : MonoBehaviour
 
     private void ReadMovementInput()
     {
-        if (isAttacking || isGuarding)
+        if (isAttacking || isGuarding || isDashing)
         {
             moveInput = Vector2.zero;
             return;
@@ -140,6 +169,54 @@ public class PlayerController : MonoBehaviour
     {
         isGuarding = false;
         animator.SetBool("Guard", false);
+    }
+
+    private void ReadDashInput()
+    {
+        if (Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownTimer <= 0f && !isAttacking && !isGuarding)
+        {
+            StartDash();
+        }
+    }
+
+    private void StartDash()
+    {
+        isDashing = true;
+        dashTimer = dashDuration;
+        dashCooldownTimer = dashCooldown;
+        afterImageTimer = 0f;
+
+        dashDirection = moveInput != Vector2.zero ? moveInput.normalized : lastMoveDirection;
+    }
+
+    private void SpawnAfterImage()
+    {
+        afterImageTimer -= Time.fixedDeltaTime;
+
+        if (afterImageTimer > 0f) return;
+
+        afterImageTimer = afterImageSpawnRate;
+
+        GameObject ghost = Instantiate(afterImagePrefab, transform.position, transform.rotation);
+
+        SpriteRenderer ghostRenderer = ghost.GetComponent<SpriteRenderer>();
+        ghostRenderer.sprite = spriteRenderer.sprite;
+        ghostRenderer.flipX = spriteRenderer.flipX;
+        ghostRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+        ghostRenderer.sortingOrder = spriteRenderer.sortingOrder - 1;
+    }
+
+    private void UpdateDashTimer()
+    {
+        if (!isDashing) return;
+
+        dashTimer -= Time.deltaTime;
+
+        if (dashTimer <= 0f)
+        {
+            isDashing = false;
+            rb.linearVelocity = Vector2.zero;
+        }
     }
 
     private void UpdateCombatTimers()
