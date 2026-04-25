@@ -17,9 +17,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float teleportOffsetFromPlayer = 0.8f;
     [SerializeField] private float teleportCooldown = 3f;
 
+    
     [Header("Lock Times")]
     [SerializeField] private float attackLockTime = 0.6f;
     [SerializeField] private float hitLockTime = 0.25f;
+    [SerializeField] private float teleportLockTime = 1.0f;
 
     [Header("Attack Hitbox")]
     [SerializeField] private Transform attackPoint;
@@ -30,6 +32,7 @@ public class EnemyAI : MonoBehaviour
     private float attackTimer;
     private float lockTimer;
     private float teleportCooldownTimer;
+    private float teleportLockTimer;
 
     private bool isAttacking;
     private bool isTeleportAttacking;
@@ -64,15 +67,14 @@ public class EnemyAI : MonoBehaviour
 
         if (isTeleportAttacking)
         {
+            teleportLockTimer -= Time.fixedDeltaTime;
+
             rb.linearVelocity = Vector2.zero;
             animator.SetFloat("Speed", 0f);
-            return;
-        }
 
-        if (lockTimer > 0f)
-        {
-            lockTimer -= Time.fixedDeltaTime;
-            StopMoving();
+            if (teleportLockTimer <= 0f)
+                EndTeleportAttack();
+
             return;
         }
 
@@ -81,6 +83,7 @@ public class EnemyAI : MonoBehaviour
 
         if (playerIsInDetectionRange && !playerWasInDetectionRange && teleportCooldownTimer <= 0f)
         {
+            teleportLockTimer = teleportLockTime;
             StartTeleportAttack();
             playerWasInDetectionRange = true;
             return;
@@ -137,7 +140,6 @@ public class EnemyAI : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
 
         UpdateAttackPointDirection();
-        DamagePlayer();
     }
 
     
@@ -190,12 +192,10 @@ public class EnemyAI : MonoBehaviour
         animator.ResetTrigger("Attack");
         animator.SetTrigger("Attack");
 
-        DamagePlayer();
-
         Invoke(nameof(EndAttack), attackLockTime);
     }
 
-    private void DamagePlayer()
+    public void DamagePlayer()
     {
         if (attackPoint == null) return;
 
@@ -203,10 +203,15 @@ public class EnemyAI : MonoBehaviour
             attackPoint.position,
             attackRadius,
             playerLayer
-        );
+        )  ;
 
         if (hit != null)
-            Debug.Log("Enemy hit player");
+        {
+            PlayerHealth playerHealth = hit.GetComponent<PlayerHealth>();
+
+            if (playerHealth != null)
+                playerHealth.TakeDamage(1);
+        }
     }
 
     private void EndAttack()
