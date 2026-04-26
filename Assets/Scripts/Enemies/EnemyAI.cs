@@ -195,6 +195,20 @@ public class EnemyAI : MonoBehaviour
         Invoke(nameof(EndAttack), attackLockTime);
     }
 
+    public void ParryStun(float stunTime)
+    {
+        if (isDead) return;
+
+        lockTimer = stunTime;
+        isAttacking = false;
+        isTeleportAttacking = false;
+
+        CancelInvoke(nameof(EndAttack));
+        StopMoving();
+
+        animator.SetTrigger("Hit");
+    }
+
     public void DamagePlayer()
     {
         if (attackPoint == null) return;
@@ -210,7 +224,7 @@ public class EnemyAI : MonoBehaviour
             PlayerHealth playerHealth = hit.GetComponent<PlayerHealth>();
 
             if (playerHealth != null)
-                playerHealth.TakeDamage(1);
+                playerHealth.TakeDamage(1, this);
         }
     }
 

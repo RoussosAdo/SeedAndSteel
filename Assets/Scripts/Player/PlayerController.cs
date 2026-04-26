@@ -20,6 +20,11 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private int attackDamage = 1;
 
+    [SerializeField] private float parryWindow = 0.2f;
+
+    public bool IsGuarding => isGuarding;
+    public bool CanParry => isGuarding && guardTimer > guardDuration - parryWindow;
+
     [Header("Dash")]
     [SerializeField] private float dashSpeed = 12f;
     [SerializeField] private float dashDuration = 0.15f;
