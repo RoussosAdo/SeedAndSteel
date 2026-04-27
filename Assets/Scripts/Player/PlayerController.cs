@@ -9,6 +9,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform attackPoint;
     [SerializeField] private float attackRange = 2f;
     [SerializeField] private LayerMask enemyLayer;
+    [SerializeField] private int attackDamage = 1;
 
     [Header("Combo")]
     [SerializeField] private float attack1Duration = 0.35f;
@@ -17,9 +18,6 @@ public class PlayerController : MonoBehaviour
 
     [Header("Guard")]
     [SerializeField] private float guardDuration = 1f;
-
-    [SerializeField] private int attackDamage = 1;
-
     [SerializeField] private float parryWindow = 0.2f;
 
     public bool IsGuarding => isGuarding;
@@ -34,51 +32,63 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject afterImagePrefab;
     [SerializeField] private float afterImageSpawnRate = 0.04f;
 
-    private float afterImageTimer;
-    private SpriteRenderer spriteRenderer;
-
-    private bool isDashing;
-    private float dashTimer;
-    private float dashCooldownTimer;
-    private Vector2 dashDirection;
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip attack1SFX;
+    [SerializeField] private AudioClip attack2SFX;
+    [SerializeField] private AudioClip dashSFX;
+    [SerializeField] private AudioClip blockSFX;
+    [SerializeField] private AudioClip footstepSFX;
+    [SerializeField] private float footstepRate = 0.4f;
 
     private Rigidbody2D rb;
     private Animator animator;
+    private SpriteRenderer spriteRenderer;
 
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.down;
 
     private bool isAttacking;
     private bool isGuarding;
+    private bool isDashing;
     private bool canCombo;
 
     private float attackTimer;
     private float comboTimer;
     private float guardTimer;
+    private float dashTimer;
+    private float dashCooldownTimer;
+    private float afterImageTimer;
+    private float footstepTimer;
 
     private int comboStep;
+    private Vector2 dashDirection;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     private void Update()
     {
         ReadMovementInput();
         ReadCombatInput();
+        ReadDashInput();
 
         UpdateCombatTimers();
         UpdateGuardTimer();
+        UpdateDashTimer();
 
         UpdateAnimator();
         UpdateFacingDirection();
+        HandleFootsteps();
 
         dashCooldownTimer -= Time.deltaTime;
-        ReadDashInput();
-        UpdateDashTimer();
     }
 
     private void FixedUpdate()
@@ -116,12 +126,10 @@ public class PlayerController : MonoBehaviour
 
     private void ReadCombatInput()
     {
-        if (Input.GetMouseButtonDown(1) && !isAttacking && !isGuarding)
-        {
+        if (Input.GetMouseButtonDown(1) && !isAttacking && !isGuarding && !isDashing)
             StartGuard();
-        }
 
-        if (Input.GetMouseButtonDown(0) && !isGuarding)
+        if (Input.GetMouseButtonDown(0) && !isGuarding && !isDashing)
         {
             if (!isAttacking)
                 StartAttack1();
@@ -134,10 +142,11 @@ public class PlayerController : MonoBehaviour
     {
         isAttacking = true;
         comboStep = 1;
-
         attackTimer = attack1Duration;
         comboTimer = comboWindow;
         canCombo = true;
+
+        PlaySFX(attack1SFX);
 
         animator.ResetTrigger("Attack1");
         animator.SetTrigger("Attack1");
@@ -148,10 +157,11 @@ public class PlayerController : MonoBehaviour
     private void StartAttack2()
     {
         comboStep = 2;
-
         attackTimer = attack2Duration;
         comboTimer = 0f;
         canCombo = false;
+
+        PlaySFX(attack2SFX);
 
         animator.ResetTrigger("Attack2");
         animator.SetTrigger("Attack2");
@@ -167,6 +177,7 @@ public class PlayerController : MonoBehaviour
         moveInput = Vector2.zero;
         rb.linearVelocity = Vector2.zero;
 
+        PlaySFX(blockSFX);
         animator.SetBool("Guard", true);
     }
 
@@ -179,9 +190,7 @@ public class PlayerController : MonoBehaviour
     private void ReadDashInput()
     {
         if (Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownTimer <= 0f && !isAttacking && !isGuarding)
-        {
             StartDash();
-        }
     }
 
     private void StartDash()
@@ -192,23 +201,8 @@ public class PlayerController : MonoBehaviour
         afterImageTimer = 0f;
 
         dashDirection = moveInput != Vector2.zero ? moveInput.normalized : lastMoveDirection;
-    }
 
-    private void SpawnAfterImage()
-    {
-        afterImageTimer -= Time.fixedDeltaTime;
-
-        if (afterImageTimer > 0f) return;
-
-        afterImageTimer = afterImageSpawnRate;
-
-        GameObject ghost = Instantiate(afterImagePrefab, transform.position, transform.rotation);
-
-        SpriteRenderer ghostRenderer = ghost.GetComponent<SpriteRenderer>();
-        ghostRenderer.sprite = spriteRenderer.sprite;
-        ghostRenderer.flipX = spriteRenderer.flipX;
-        ghostRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
-        ghostRenderer.sortingOrder = spriteRenderer.sortingOrder - 1;
+        PlaySFX(dashSFX);
     }
 
     private void UpdateDashTimer()
@@ -224,6 +218,24 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void SpawnAfterImage()
+    {
+        if (afterImagePrefab == null) return;
+
+        afterImageTimer -= Time.fixedDeltaTime;
+        if (afterImageTimer > 0f) return;
+
+        afterImageTimer = afterImageSpawnRate;
+
+        GameObject ghost = Instantiate(afterImagePrefab, transform.position, transform.rotation);
+
+        SpriteRenderer ghostRenderer = ghost.GetComponent<SpriteRenderer>();
+        ghostRenderer.sprite = spriteRenderer.sprite;
+        ghostRenderer.flipX = spriteRenderer.flipX;
+        ghostRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+        ghostRenderer.sortingOrder = spriteRenderer.sortingOrder - 1;
+    }
+
     private void UpdateCombatTimers()
     {
         if (!isAttacking) return;
@@ -233,7 +245,6 @@ public class PlayerController : MonoBehaviour
         if (canCombo)
         {
             comboTimer -= Time.deltaTime;
-
             if (comboTimer <= 0f)
                 canCombo = false;
         }
@@ -271,11 +282,33 @@ public class PlayerController : MonoBehaviour
             EnemyHealth enemyHealth = hit.GetComponent<EnemyHealth>();
 
             if (enemyHealth != null)
-            {
                 enemyHealth.TakeDamage(attackDamage);
-            }
         }
+
         Debug.Log("Attack happened. Hits: " + hits.Length);
+    }
+
+    private void HandleFootsteps()
+    {
+        if (moveInput == Vector2.zero || isAttacking || isGuarding || isDashing)
+        {
+            footstepTimer = 0f;
+            return;
+        }
+
+        footstepTimer -= Time.deltaTime;
+
+        if (footstepTimer <= 0f)
+        {
+            PlaySFX(footstepSFX);
+            footstepTimer = footstepRate;
+        }
+    }
+
+    private void PlaySFX(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+            audioSource.PlayOneShot(clip);
     }
 
     private void UpdateAnimator()
@@ -284,32 +317,25 @@ public class PlayerController : MonoBehaviour
     }
 
     private void UpdateFacingDirection()
-{
-    if (isAttacking || isGuarding) return;
-
-    if (moveInput.x > 0.01f)
-        GetComponent<SpriteRenderer>().flipX = false;
-    else if (moveInput.x < -0.01f)
-        GetComponent<SpriteRenderer>().flipX = true;
-
-    if (attackPoint != null)
     {
+        if (isAttacking || isGuarding) return;
+
+        if (moveInput.x > 0.01f)
+            spriteRenderer.flipX = false;
+        else if (moveInput.x < -0.01f)
+            spriteRenderer.flipX = true;
+
+        if (attackPoint == null) return;
+
         Vector2 attackOffset = lastMoveDirection.normalized;
 
         if (attackOffset.y > 0.3f)
-        {
             attackPoint.localPosition = new Vector3(attackOffset.x * 0.35f, 0.45f, 0f);
-        }
         else if (attackOffset.y < -0.3f)
-        {
             attackPoint.localPosition = new Vector3(attackOffset.x * 0.35f, -0.45f, 0f);
-        }
         else
-        {
             attackPoint.localPosition = new Vector3(attackOffset.x * 0.55f, -0.05f, 0f);
-        }
     }
-}
 
     private void OnDrawGizmosSelected()
     {

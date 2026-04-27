@@ -5,6 +5,7 @@ public class PlayerHealth : MonoBehaviour
 {
     [Header("Health")]
     [SerializeField] private int maxHealth = 5;
+    [SerializeField] private HealthUI healthUI;
 
     [Header("I-Frames")]
     [SerializeField] private float invincibleDuration = 0.7f;
@@ -27,10 +28,16 @@ public class PlayerHealth : MonoBehaviour
         playerController = GetComponent<PlayerController>();
     }
 
+    private void Start()
+    {
+        UpdateHealthUI();
+    }
+
     public void TakeDamage(int damage, EnemyAI attacker = null)
     {
         if (isDead || isInvincible) return;
 
+        // Parry
         if (playerController != null && playerController.CanParry && attacker != null)
         {
             Debug.Log("PARRY!");
@@ -38,6 +45,7 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
+        // Block
         if (playerController != null && playerController.IsGuarding)
         {
             Debug.Log("BLOCK!");
@@ -45,7 +53,11 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
+        // Normal damage
         currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+
+        UpdateHealthUI();
         Debug.Log("Player HP: " + currentHealth);
 
         if (currentHealth <= 0)
@@ -55,6 +67,12 @@ public class PlayerHealth : MonoBehaviour
         }
 
         StartCoroutine(InvincibilityFrames());
+    }
+
+    private void UpdateHealthUI()
+    {
+        if (healthUI != null)
+            healthUI.UpdateHealth(currentHealth, maxHealth);
     }
 
     private IEnumerator InvincibilityFrames()
