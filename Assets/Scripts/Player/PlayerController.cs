@@ -27,6 +27,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float dashSpeed = 12f;
     [SerializeField] private float dashDuration = 0.15f;
     [SerializeField] private float dashCooldown = 0.6f;
+    [SerializeField] private float perfectDodgeWindow = 0.2f;
+
+    public bool IsDashing => isDashing;
 
     [Header("Dash Afterimage")]
     [SerializeField] private GameObject afterImagePrefab;
@@ -44,6 +47,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private SpriteRenderer spriteRenderer;
+    private PlayerHealth playerHealth;
 
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.down;
@@ -58,6 +62,7 @@ public class PlayerController : MonoBehaviour
     private float guardTimer;
     private float dashTimer;
     private float dashCooldownTimer;
+    private float perfectDodgeTimer;
     private float afterImageTimer;
     private float footstepTimer;
 
@@ -69,6 +74,7 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        playerHealth = GetComponent<PlayerHealth>();
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
@@ -83,6 +89,7 @@ public class PlayerController : MonoBehaviour
         UpdateCombatTimers();
         UpdateGuardTimer();
         UpdateDashTimer();
+        UpdatePerfectDodgeTimer();
 
         UpdateAnimator();
         UpdateFacingDirection();
@@ -107,6 +114,11 @@ public class PlayerController : MonoBehaviour
         }
 
         rb.linearVelocity = moveInput.normalized * moveSpeed;
+    }
+
+    public bool IsInPerfectDodge()
+    {
+        return perfectDodgeTimer > 0f;
     }
 
     private void ReadMovementInput()
@@ -198,9 +210,13 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         dashTimer = dashDuration;
         dashCooldownTimer = dashCooldown;
+        perfectDodgeTimer = perfectDodgeWindow;
         afterImageTimer = 0f;
 
         dashDirection = moveInput != Vector2.zero ? moveInput.normalized : lastMoveDirection;
+
+        if (playerHealth != null)
+            playerHealth.SetInvincible(dashDuration);
 
         PlaySFX(dashSFX);
     }
@@ -216,6 +232,12 @@ public class PlayerController : MonoBehaviour
             isDashing = false;
             rb.linearVelocity = Vector2.zero;
         }
+    }
+
+    private void UpdatePerfectDodgeTimer()
+    {
+        if (perfectDodgeTimer > 0f)
+            perfectDodgeTimer -= Time.deltaTime;
     }
 
     private void SpawnAfterImage()

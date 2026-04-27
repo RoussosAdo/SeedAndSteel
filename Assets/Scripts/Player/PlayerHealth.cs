@@ -14,12 +14,17 @@ public class PlayerHealth : MonoBehaviour
     [Header("Block / Parry")]
     [SerializeField] private float parryStunTime = 0.8f;
 
+    [Header("Perfect Dodge Slow Motion")]
+    [SerializeField] private float slowMotionScale = 0.2f;
+    [SerializeField] private float slowMotionDuration = 0.25f;
+
     private int currentHealth;
     private bool isDead;
     private bool isInvincible;
 
     private SpriteRenderer spriteRenderer;
     private PlayerController playerController;
+    private Coroutine invincibleRoutine;
 
     private void Awake()
     {
@@ -35,9 +40,17 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(int damage, EnemyAI attacker = null)
     {
-        if (isDead || isInvincible) return;
+        if (isDead) return;
 
-        // Parry
+        if (playerController != null && playerController.IsDashing && playerController.IsInPerfectDodge())
+        {
+            Debug.Log("PERFECT DODGE!");
+            StartCoroutine(SlowMotionBurst());
+            return;
+        }
+
+        if (isInvincible) return;
+
         if (playerController != null && playerController.CanParry && attacker != null)
         {
             Debug.Log("PARRY!");
@@ -45,15 +58,13 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
-        // Block
         if (playerController != null && playerController.IsGuarding)
         {
             Debug.Log("BLOCK!");
-            StartCoroutine(InvincibilityFrames());
+            SetInvincible(invincibleDuration);
             return;
         }
 
-        // Normal damage
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
 
@@ -66,22 +77,26 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
-        StartCoroutine(InvincibilityFrames());
+        SetInvincible(invincibleDuration);
     }
 
-    private void UpdateHealthUI()
+    public void SetInvincible(float duration)
     {
-        if (healthUI != null)
-            healthUI.UpdateHealth(currentHealth, maxHealth);
+        if (isDead) return;
+
+        if (invincibleRoutine != null)
+            StopCoroutine(invincibleRoutine);
+
+        invincibleRoutine = StartCoroutine(InvincibilityFrames(duration));
     }
 
-    private IEnumerator InvincibilityFrames()
+    private IEnumerator InvincibilityFrames(float duration)
     {
         isInvincible = true;
 
         float timer = 0f;
 
-        while (timer < invincibleDuration)
+        while (timer < duration)
         {
             spriteRenderer.enabled = false;
             yield return new WaitForSeconds(flashInterval);
@@ -94,6 +109,20 @@ public class PlayerHealth : MonoBehaviour
 
         spriteRenderer.enabled = true;
         isInvincible = false;
+        invincibleRoutine = null;
+    }
+
+    private IEnumerator SlowMotionBurst()
+    {
+        Time.timeScale = slowMotionScale;
+        yield return new WaitForSecondsRealtime(slowMotionDuration);
+        Time.timeScale = 1f;
+    }
+
+    private void UpdateHealthUI()
+    {
+        if (healthUI != null)
+            healthUI.UpdateHealth(currentHealth, maxHealth);
     }
 
     private void Die()
