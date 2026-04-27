@@ -304,9 +304,15 @@ public class PlayerController : MonoBehaviour
             EnemyHealth enemyHealth = hit.GetComponent<EnemyHealth>();
 
             if (enemyHealth != null)
+            {
+                
                 enemyHealth.TakeDamage(attackDamage);
-        }
 
+                if (CombatFeedback.Instance != null)
+                CombatFeedback.Instance.PlayHitFeedback();
+            }
+        }
+        
         Debug.Log("Attack happened. Hits: " + hits.Length);
     }
 
