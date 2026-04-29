@@ -358,16 +358,13 @@ public class PlayerController : MonoBehaviour
     private void UpdateAnimator()
     {
         animator.SetFloat("Speed", moveInput.sqrMagnitude);
+        animator.SetFloat("MoveX", lastMoveDirection.x);
+        animator.SetFloat("MoveY", lastMoveDirection.y);
     }
 
     private void UpdateFacingDirection()
     {
         if (isAttacking || isGuarding) return;
-
-        if (moveInput.x > 0.01f)
-            spriteRenderer.flipX = false;
-        else if (moveInput.x < -0.01f)
-            spriteRenderer.flipX = true;
 
         if (attackPoint == null) return;
 
