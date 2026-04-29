@@ -17,7 +17,6 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float teleportOffsetFromPlayer = 0.8f;
     [SerializeField] private float teleportCooldown = 3f;
 
-    
     [Header("Lock Times")]
     [SerializeField] private float attackLockTime = 0.6f;
     [SerializeField] private float hitLockTime = 0.25f;
@@ -33,11 +32,13 @@ public class EnemyAI : MonoBehaviour
     private float lockTimer;
     private float teleportCooldownTimer;
     private float teleportLockTimer;
+    private float knockbackTimer;
 
     private bool isAttacking;
     private bool isTeleportAttacking;
     private bool isDead;
     private bool playerWasInDetectionRange;
+    private bool isKnocked;
 
     private Rigidbody2D rb;
     private Animator animator;
@@ -60,6 +61,19 @@ public class EnemyAI : MonoBehaviour
     {
         if (isDead || player == null) return;
 
+        if (isKnocked)
+        {
+            knockbackTimer -= Time.fixedDeltaTime;
+
+            if (knockbackTimer <= 0f)
+            {
+                isKnocked = false;
+                StopMoving();
+            }
+
+            return;
+        }
+
         attackTimer -= Time.fixedDeltaTime;
         teleportCooldownTimer -= Time.fixedDeltaTime;
 
@@ -68,13 +82,18 @@ public class EnemyAI : MonoBehaviour
         if (isTeleportAttacking)
         {
             teleportLockTimer -= Time.fixedDeltaTime;
-
-            rb.linearVelocity = Vector2.zero;
-            animator.SetFloat("Speed", 0f);
+            StopMoving();
 
             if (teleportLockTimer <= 0f)
                 EndTeleportAttack();
 
+            return;
+        }
+
+        if (lockTimer > 0f)
+        {
+            lockTimer -= Time.fixedDeltaTime;
+            StopMoving();
             return;
         }
 
@@ -115,7 +134,6 @@ public class EnemyAI : MonoBehaviour
         CancelInvoke(nameof(EndAttack));
         StopMoving();
 
-        rb.linearVelocity = Vector2.zero;
         rb.constraints = RigidbodyConstraints2D.FreezeAll;
 
         animator.SetFloat("Speed", 0f);
@@ -124,7 +142,6 @@ public class EnemyAI : MonoBehaviour
         animator.ResetTrigger("Dash");
         animator.SetTrigger("Dash");
     }
-
 
     public void TeleportNearPlayer()
     {
@@ -138,15 +155,12 @@ public class EnemyAI : MonoBehaviour
         transform.position = (Vector2)player.position + directionFromPlayerToEnemy * teleportOffsetFromPlayer;
 
         rb.linearVelocity = Vector2.zero;
-
         UpdateAttackPointDirection();
     }
 
-    
     public void EndTeleportAttack()
     {
         isTeleportAttacking = false;
-
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         StopMoving();
     }
@@ -166,7 +180,7 @@ public class EnemyAI : MonoBehaviour
 
     private void ChasePlayer()
     {
-        if (isAttacking || isTeleportAttacking) return;
+        if (isAttacking || isTeleportAttacking || isKnocked) return;
 
         Vector2 direction = (player.position - transform.position).normalized;
 
@@ -181,7 +195,7 @@ public class EnemyAI : MonoBehaviour
 
     private void TryAttack()
     {
-        if (attackTimer > 0f || isAttacking || isTeleportAttacking) return;
+        if (attackTimer > 0f || isAttacking || isTeleportAttacking || isKnocked) return;
 
         isAttacking = true;
         attackTimer = attackCooldown;
@@ -195,6 +209,22 @@ public class EnemyAI : MonoBehaviour
         Invoke(nameof(EndAttack), attackLockTime);
     }
 
+    public void ApplyKnockback(Vector2 direction, float force, float duration)
+    {
+        if (isDead) return;
+
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        isKnocked = true;
+        isAttacking = false;
+        isTeleportAttacking = false;
+        knockbackTimer = duration;
+
+        CancelInvoke(nameof(EndAttack));
+
+        rb.linearVelocity = direction.normalized * force;
+    }
+
     public void ParryStun(float stunTime)
     {
         if (isDead) return;
@@ -202,6 +232,7 @@ public class EnemyAI : MonoBehaviour
         lockTimer = stunTime;
         isAttacking = false;
         isTeleportAttacking = false;
+        isKnocked = false;
 
         CancelInvoke(nameof(EndAttack));
         StopMoving();
@@ -217,7 +248,7 @@ public class EnemyAI : MonoBehaviour
             attackPoint.position,
             attackRadius,
             playerLayer
-        )  ;
+        );
 
         if (hit != null)
         {
@@ -244,7 +275,8 @@ public class EnemyAI : MonoBehaviour
         isTeleportAttacking = false;
 
         CancelInvoke(nameof(EndAttack));
-        StopMoving();
+
+        // ΜΗΝ κάνεις StopMoving εδώ, γιατί κόβει το knockback.
     }
 
     private void StopMoving()
@@ -258,6 +290,7 @@ public class EnemyAI : MonoBehaviour
         isDead = true;
         isAttacking = false;
         isTeleportAttacking = false;
+        isKnocked = false;
         lockTimer = 0f;
 
         CancelInvoke(nameof(EndAttack));

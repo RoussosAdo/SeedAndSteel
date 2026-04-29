@@ -5,6 +5,10 @@ public class EnemyHealth : MonoBehaviour
     [SerializeField] private int maxHealth = 3;
     [SerializeField] private float destroyDelay = 1.2f;
 
+    [Header("Knockback")]
+    [SerializeField] private float knockbackForce = 5f;
+    [SerializeField] private float knockbackDuration = 0.12f;
+
     private int currentHealth;
     private Animator animator;
     private Collider2D enemyCollider;
@@ -36,21 +40,44 @@ public class EnemyHealth : MonoBehaviour
         if (enemyAI != null)
             enemyAI.HitStun();
 
+        ApplyKnockback();
+
+        animator.ResetTrigger("Attack");
         animator.SetTrigger("Hit");
+    }
+
+    private void ApplyKnockback()
+    {
+        if (enemyAI == null) return;
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+
+        Vector2 direction = (transform.position - player.transform.position).normalized;
+
+        enemyAI.ApplyKnockback(direction, knockbackForce, knockbackDuration);
+    }
+
+    private void ResetVelocity()
+    {
+        if (rb != null)
+            rb.linearVelocity = Vector2.zero;
     }
 
     private void Die()
     {
         isDead = true;
 
+        CancelInvoke(nameof(ResetVelocity));
+
         if (enemyAI != null)
-        enemyAI.SetDead();
+            enemyAI.SetDead();
 
         if (enemyCollider != null)
-        enemyCollider.enabled = false;
+            enemyCollider.enabled = false;
 
         if (rb != null)
-        rb.linearVelocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
 
         animator.ResetTrigger("Attack");
         animator.ResetTrigger("Hit");

@@ -11,6 +11,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask enemyLayer;
     [SerializeField] private int attackDamage = 1;
 
+    [Header("Hit Effects")]
+    [SerializeField] private GameObject attack1HitEffectPrefab;
+    [SerializeField] private GameObject attack2HitEffectPrefab;
+
     [Header("Combo")]
     [SerializeField] private float attack1Duration = 0.35f;
     [SerializeField] private float attack2Duration = 0.45f;
@@ -68,6 +72,7 @@ public class PlayerController : MonoBehaviour
 
     private int comboStep;
     private Vector2 dashDirection;
+    private GameObject currentHitEffectPrefab;
 
     private void Awake()
     {
@@ -157,6 +162,7 @@ public class PlayerController : MonoBehaviour
         attackTimer = attack1Duration;
         comboTimer = comboWindow;
         canCombo = true;
+        currentHitEffectPrefab = attack1HitEffectPrefab;
 
         PlaySFX(attack1SFX);
 
@@ -172,6 +178,7 @@ public class PlayerController : MonoBehaviour
         attackTimer = attack2Duration;
         comboTimer = 0f;
         canCombo = false;
+        currentHitEffectPrefab = attack2HitEffectPrefab;
 
         PlaySFX(attack2SFX);
 
@@ -276,6 +283,7 @@ public class PlayerController : MonoBehaviour
             isAttacking = false;
             comboStep = 0;
             canCombo = false;
+            currentHitEffectPrefab = null;
         }
     }
 
@@ -305,15 +313,23 @@ public class PlayerController : MonoBehaviour
 
             if (enemyHealth != null)
             {
-                
                 enemyHealth.TakeDamage(attackDamage);
 
+                SpawnHitEffect(attackPoint.position);
+
                 if (CombatFeedback.Instance != null)
-                CombatFeedback.Instance.PlayHitFeedback();
+                    CombatFeedback.Instance.PlayHitFeedback();
             }
         }
-        
+
         Debug.Log("Attack happened. Hits: " + hits.Length);
+    }
+
+    private void SpawnHitEffect(Vector3 position)
+    {
+        if (currentHitEffectPrefab == null) return;
+
+        Instantiate(currentHitEffectPrefab, position, Quaternion.identity);
     }
 
     private void HandleFootsteps()
