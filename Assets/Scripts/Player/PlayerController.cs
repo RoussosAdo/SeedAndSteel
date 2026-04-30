@@ -310,15 +310,28 @@ public class PlayerController : MonoBehaviour
         foreach (Collider2D hit in hits)
         {
             EnemyHealth enemyHealth = hit.GetComponent<EnemyHealth>();
+            DirectionalEnemyHealth directionalEnemyHealth = hit.GetComponent<DirectionalEnemyHealth>();
+
+            bool hitSomething = false;
 
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(attackDamage);
+                hitSomething = true;
+            }
 
+            if (directionalEnemyHealth != null)
+            {
+                directionalEnemyHealth.TakeDamage(attackDamage);
+                hitSomething = true;
+            }
+
+            if (hitSomething)
+            {
                 SpawnHitEffect(attackPoint.position);
 
-                if (CombatFeedback.Instance != null)
-                    CombatFeedback.Instance.PlayHitFeedback();
+                    if (CombatFeedback.Instance != null)
+                        CombatFeedback.Instance.PlayHitFeedback();
             }
         }
 
